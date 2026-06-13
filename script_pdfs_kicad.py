@@ -23,7 +23,6 @@ from tkinter import filedialog, messagebox
 def encontrar_cli_automaticamente():
     """Searches all likely folders, collects all versions, and returns the most recent one."""
     
-    # Você pode adicionar as pastas específicas onde sabe que suas versões estão instaladas
     pastas_provaveis = [
         r"C:/Program Files/KiCad",
         r"C:/Program Files (x86)/KiCad",
@@ -34,51 +33,31 @@ def encontrar_cli_automaticamente():
         r"F:/Program Files/KiCad",
         r"F:/Program Files (x86)/KiCad",
     ]
-    
-    # Criamos uma lista geral para guardar TUDO o que encontrarmos em todos os diretórios
     todas_versoes_encontradas = []
     
     for diretorio_base in pastas_provaveis:
         if not os.path.exists(diretorio_base):
             continue 
-            
-        # Lê o que tem dentro da pasta atual
         for nome_pasta in os.listdir(diretorio_base):
             caminho_pasta = os.path.join(diretorio_base, nome_pasta)
             
             if os.path.isdir(caminho_pasta):
-                print(f"👀 Analisando pasta: {caminho_pasta}")
                 try:
-                    # Converte o nome da pasta em números (ex: "8.0" vira (8, 0))
                     partes_da_versao = tuple(map(int, nome_pasta.split('.')))
-                    
-                    # Monta o caminho exato de onde o CLI deveria estar
                     caminho_esperado = os.path.join(caminho_pasta, "bin", "kicad-cli.exe")
-                    
-                    # SÓ ADICIONA na lista se o arquivo .exe realmente existir lá dentro
                     if os.path.exists(caminho_esperado):
-                        # Guardamos um "pacote" com a numeração e o caminho
                         todas_versoes_encontradas.append((partes_da_versao, caminho_esperado))
                         
                 except ValueError:
-                    continue # Ignora pastas com letras (ex: "bin", "share")
-    
+                    continue
     # --- FASE DE COMPARAÇÃO ---
-    
-    # Se a lista não estiver vazia (ou seja, se achou pelo menos um CLI em qualquer lugar)
     if todas_versoes_encontradas:
-        
-        # O Python vai ordenar a lista baseada na tupla de números (8, 0).
-        # A versão mais alta vai automaticamente parar no final da lista.
         todas_versoes_encontradas.sort() 
-        
-        # Pegamos o último item da lista ([-1]). 
-        # O [1] pega o segundo elemento do nosso pacote (que é o caminho_esperado)
         caminho_versao_mais_recente = todas_versoes_encontradas[-1][1]
         
         return caminho_versao_mais_recente
         
-    return None # Retorna vazio se não achou em lugar nenhum
+    return None
 
 # =========================================================
 # LÓGICA DA INTERFACE GRÁFICA
@@ -100,17 +79,14 @@ def iniciar_codigo():
     if not caminho_da_pasta:
         messagebox.showwarning("Warning", "Please select the project folder first!")
         return
-    root.destroy() # Fecha a janela e continua o código
+    root.destroy()
 
 # --- INICIALIZAÇÃO DO FLUXO ---
 
 root = tk.Tk()
-root.withdraw() # Esconde a janela principal temporariamente para não poluir a tela
+root.withdraw()
 
-# 1. Tenta achar o CLI automaticamente
 caminho_cli = encontrar_cli_automaticamente()
-
-# 2. Plano B: Se não achou, avisa e pede ajuda ao usuário
 if not caminho_cli:
     messagebox.showinfo(
         "Aviso", 
@@ -120,17 +96,14 @@ if not caminho_cli:
         title="Select kicad-cli.exe executable",
         filetypes=[("KiCad Executable", "kicad-cli.exe"), ("All files", "*.*")]
     )
-    
-    # Se o usuário fechar a janela de busca sem escolher o CLI, encerra tudo
     if not caminho_cli:
         print("Operation canceled: The CLI path is required.")
         exit()
 
-# 3. Agora que temos o CLI, montamos a janela principal para a Pasta
-root.deiconify() # Mostra a janela que estava escondida
+root.deiconify() 
 root.title("KiCad Document Generator")
 root.geometry("350x200") 
-root.eval('tk::PlaceWindow . center') # Centraliza a janela
+root.eval('tk::PlaceWindow . center') 
 
 tk.Label(root, text="Select the project folder:", font=("Arial", 10, "bold")).pack(pady=(25, 5))
 
@@ -142,26 +115,19 @@ lbl_pasta_escolhida.pack(pady=10)
 
 btn_executar = tk.Button(root, text="Generate Files", bg="#4CAF50", fg="black", font=("Arial", 10, "bold"), command=iniciar_codigo)
 btn_executar.pack(pady=15)
-
-# Congela o script aqui e espera o usuário interagir
 root.mainloop()
 
 # =========================================================
 # CONTINUAÇÃO DO CÓDIGO ORIGINAL
 # =========================================================
 
-# Se o usuário fechou a janela no 'X' sem clicar em executar
 if not caminho_da_pasta:
     print("Operação cancelada pelo usuário.")
     exit()
 
-# A partir daqui, você tem as duas variáveis perfeitas para usar no seu código!
 print("\n--- INICIANDO PROCESSAMENTO ---")
 print(f"✅ Caminho do CLI: {caminho_cli}")
 print(f"✅ Pasta do Projeto: {caminho_da_pasta}")
-
-# Agora você pode usar a biblioteca `subprocess` para enviar comandos 
-# para o `caminho_cli` apontando para os arquivos dentro de `caminho_da_pasta`.
 
 nome_com_extensao = os.path.basename(caminho_da_pasta)
 nome_sem_extensao, extensao = os.path.splitext(nome_com_extensao)
@@ -189,7 +155,7 @@ A4_height = "604"
 
 
 # 1. Exportar PDF do esquemático
-schematic_pdf = os.path.join(output_dir, "esquematico.pdf")
+schematic_pdf = os.path.join(output_dir, "schematics.pdf")
 if os.path.exists(schematic_pdf):
     print("Removendo PDF esquema anterior...")
     os.remove(schematic_pdf)
@@ -263,7 +229,7 @@ def create_bom_pdf(csv_path, pdf_path, refs_per_line=6):
     ]))
     pdf.build([table])
 
-bom_agrupado_csv = os.path.join(output_dir, "bom_agrupado.csv")
+bom_agrupado_csv = os.path.join(output_dir, "bom_grouped.csv")
 if os.path.exists(bom_agrupado_csv):
     print("Removendo BOM  agrupado .csv anterior...")
     os.remove(bom_agrupado_csv)
@@ -339,7 +305,7 @@ image.save(render_iso_pdf)
 
 
 # 8. Juntar tudo em um único PDF
-final_pdf = os.path.join(output_dir, "projeto_completo.pdf")
+final_pdf = os.path.join(output_dir, "0_Full_Project.pdf")
 if os.path.exists(final_pdf):
     print("Removendo PDF projeto completo anterior...")
     os.remove(final_pdf)
