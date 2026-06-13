@@ -15,6 +15,18 @@ from reportlab.platypus import Table, TableStyle, SimpleDocTemplate
 from extra_functions import *
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import sys
+
+def resolver_caminho(caminho_relativo):
+    """ Retorna o caminho absoluto, funcionando tanto no VS Code quanto no .exe final """
+    try:
+        # Quando compilado, o PyInstaller cria essa variável _MEIPASS com o caminho da pasta temporária
+        caminho_base = sys._MEIPASS
+    except Exception:
+        # Se estiver rodando normal pelo VS Code, usa a pasta atual
+        caminho_base = os.path.abspath(".")
+        
+    return os.path.join(caminho_base, caminho_relativo)
 
 # =========================================================
 # LÓGICA DE BUSCA AUTOMÁTICA (RODA NO FUNDO)
@@ -85,6 +97,8 @@ def iniciar_codigo():
 
 root = tk.Tk()
 root.withdraw()
+caminho_do_icone = resolver_caminho("file-generator.ico")
+root.iconbitmap(caminho_do_icone)
 
 caminho_cli = encontrar_cli_automaticamente()
 if not caminho_cli:
