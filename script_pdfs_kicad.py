@@ -13,11 +13,168 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate
 from extra_functions import *
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+# =========================================================
+# LÓGICA DE BUSCA AUTOMÁTICA (RODA NO FUNDO)
+# =========================================================
+
+def encontrar_cli_automaticamente():
+    """Searches all likely folders, collects all versions, and returns the most recent one."""
+    
+    # Você pode adicionar as pastas específicas onde sabe que suas versões estão instaladas
+    pastas_provaveis = [
+        r"C:/Program Files/KiCad",
+        r"C:/Program Files (x86)/KiCad",
+        r"D:/Program Files/KiCad",
+        r"D:/Program Files (x86)/KiCad",
+        r"E:/Program Files/KiCad",
+        r"E:/Program Files (x86)/KiCad",
+        r"F:/Program Files/KiCad",
+        r"F:/Program Files (x86)/KiCad",
+    ]
+    
+    # Criamos uma lista geral para guardar TUDO o que encontrarmos em todos os diretórios
+    todas_versoes_encontradas = []
+    
+    for diretorio_base in pastas_provaveis:
+        if not os.path.exists(diretorio_base):
+            continue 
+            
+        # Lê o que tem dentro da pasta atual
+        for nome_pasta in os.listdir(diretorio_base):
+            caminho_pasta = os.path.join(diretorio_base, nome_pasta)
+            
+            if os.path.isdir(caminho_pasta):
+                print(f"👀 Analisando pasta: {caminho_pasta}")
+                try:
+                    # Converte o nome da pasta em números (ex: "8.0" vira (8, 0))
+                    partes_da_versao = tuple(map(int, nome_pasta.split('.')))
+                    
+                    # Monta o caminho exato de onde o CLI deveria estar
+                    caminho_esperado = os.path.join(caminho_pasta, "bin", "kicad-cli.exe")
+                    
+                    # SÓ ADICIONA na lista se o arquivo .exe realmente existir lá dentro
+                    if os.path.exists(caminho_esperado):
+                        # Guardamos um "pacote" com a numeração e o caminho
+                        todas_versoes_encontradas.append((partes_da_versao, caminho_esperado))
+                        
+                except ValueError:
+                    continue # Ignora pastas com letras (ex: "bin", "share")
+    
+    # --- FASE DE COMPARAÇÃO ---
+    
+    # Se a lista não estiver vazia (ou seja, se achou pelo menos um CLI em qualquer lugar)
+    if todas_versoes_encontradas:
+        
+        # O Python vai ordenar a lista baseada na tupla de números (8, 0).
+        # A versão mais alta vai automaticamente parar no final da lista.
+        todas_versoes_encontradas.sort() 
+        
+        # Pegamos o último item da lista ([-1]). 
+        # O [1] pega o segundo elemento do nosso pacote (que é o caminho_esperado)
+        caminho_versao_mais_recente = todas_versoes_encontradas[-1][1]
+        
+        return caminho_versao_mais_recente
+        
+    return None # Retorna vazio se não achou em lugar nenhum
+
+# =========================================================
+# LÓGICA DA INTERFACE GRÁFICA
+# =========================================================
+
+caminho_cli = ""
+caminho_da_pasta = ""
+
+def selecionar_pasta():
+    """Open File Explorer to select the project folder."""
+    global caminho_da_pasta
+    caminho = filedialog.askdirectory(title="Select the project folder")
+    if caminho:
+        caminho_da_pasta = caminho
+        lbl_pasta_escolhida.config(text=os.path.basename(caminho), fg="green")
+
+def iniciar_codigo():
+    """Checks whether the folder has been selected and runs the main script."""
+    if not caminho_da_pasta:
+        messagebox.showwarning("Warning", "Please select the project folder first!")
+        return
+    root.destroy() # Fecha a janela e continua o código
+
+# --- INICIALIZAÇÃO DO FLUXO ---
+
+root = tk.Tk()
+root.withdraw() # Esconde a janela principal temporariamente para não poluir a tela
+
+# 1. Tenta achar o CLI automaticamente
+caminho_cli = encontrar_cli_automaticamente()
+
+# 2. Plano B: Se não achou, avisa e pede ajuda ao usuário
+if not caminho_cli:
+    messagebox.showinfo(
+        "Aviso", 
+        "The file 'kicad-cli.exe' was not found automatically. Please locate it on the next screen."
+    )
+    caminho_cli = filedialog.askopenfilename(
+        title="Select kicad-cli.exe executable",
+        filetypes=[("KiCad Executable", "kicad-cli.exe"), ("All files", "*.*")]
+    )
+    
+    # Se o usuário fechar a janela de busca sem escolher o CLI, encerra tudo
+    if not caminho_cli:
+        print("Operation canceled: The CLI path is required.")
+        exit()
+
+# 3. Agora que temos o CLI, montamos a janela principal para a Pasta
+root.deiconify() # Mostra a janela que estava escondida
+root.title("KiCad Document Generator")
+root.geometry("350x200") 
+root.eval('tk::PlaceWindow . center') # Centraliza a janela
+
+tk.Label(root, text="Select the project folder:", font=("Arial", 10, "bold")).pack(pady=(25, 5))
+
+btn_procurar = tk.Button(root, text="Search for folder...", command=selecionar_pasta)
+btn_procurar.pack()
+
+lbl_pasta_escolhida = tk.Label(root, text="No folder selected", fg="gray")
+lbl_pasta_escolhida.pack(pady=10)
+
+btn_executar = tk.Button(root, text="Generate Files", bg="#4CAF50", fg="black", font=("Arial", 10, "bold"), command=iniciar_codigo)
+btn_executar.pack(pady=15)
+
+# Congela o script aqui e espera o usuário interagir
+root.mainloop()
+
+# =========================================================
+# CONTINUAÇÃO DO CÓDIGO ORIGINAL
+# =========================================================
+
+# Se o usuário fechou a janela no 'X' sem clicar em executar
+if not caminho_da_pasta:
+    print("Operação cancelada pelo usuário.")
+    exit()
+
+# A partir daqui, você tem as duas variáveis perfeitas para usar no seu código!
+print("\n--- INICIANDO PROCESSAMENTO ---")
+print(f"✅ Caminho do CLI: {caminho_cli}")
+print(f"✅ Pasta do Projeto: {caminho_da_pasta}")
+
+# Agora você pode usar a biblioteca `subprocess` para enviar comandos 
+# para o `caminho_cli` apontando para os arquivos dentro de `caminho_da_pasta`.
+
+nome_com_extensao = os.path.basename(caminho_da_pasta)
+nome_sem_extensao, extensao = os.path.splitext(nome_com_extensao)
+print(f"Nome do Projeto: {nome_sem_extensao}")
+
+# ------------------------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------
 
 # Caminhos
-project_path = "/media/bruno-claudino/Dados/Google_DRIVE/DRIVE_Cear/KiCad/Sensor temp/mux_teste"
-project_name = "mux_teste"
-kicad_cli_path = r"/bin/kicad-cli"
+project_path = caminho_da_pasta
+project_name = nome_sem_extensao
+kicad_cli_path = caminho_cli
 
 # Projetos
 schematic_file = os.path.join(project_path, f"{project_name}.kicad_sch")
